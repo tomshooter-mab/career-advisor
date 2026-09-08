@@ -157,7 +157,7 @@ with st.form("student_form"):
     submit_button = st.form_submit_button("🚀 Jalankan Analisis AI Completeness & Feasibility")
 
 # ---------------------------------------------------------
-# 6. PEMPROSESAN GEMINI API (TRANSPARENT ERROR HANDLING)
+# 6. PEMPROSESAN GEMINI API (TRANSPARENT ERROR HANDLING & FALLBACK)
 # ---------------------------------------------------------
 if submit_button:
     if not api_key:
@@ -165,8 +165,8 @@ if submit_button:
     elif not target_bidang or not univ_1 or not univ_2 or not univ_3 or not skill_dimiliki:
         st.warning("⚠️ Mohon lengkapi semua kolom yang bertanda bintang (*).")
     else:
-        # Daftar model yang dicoba berurutan
-        models_to_try = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+        # Urutan model aktif yang akan dicoba jika terjadi server overload (503)
+        models_to_try = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.0-flash']
         
         response = None
         success = False
@@ -242,7 +242,11 @@ if submit_button:
                     break
                 except Exception as e:
                     last_error = str(e)
-                    continue
+                    # Hanya lanjut ke model berikutnya jika errornya karena 503/UNAVAILABLE (Server sibuk)
+                    if "503" in str(e) or "UNAVAILABLE" in str(e):
+                        continue
+                    else:
+                        break
 
             if success and response:
                 st.success("🎉 Analisis Portofolio & Kelayakan Kampus Selesai!")
