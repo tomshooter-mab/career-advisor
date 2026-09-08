@@ -21,22 +21,22 @@ if "user_type" not in st.session_state:
 if "username" not in st.session_state:
     st.session_state["username"] = ""
 if "users_db" not in st.session_state:
-    st.session_state["users_db"] = {"siswa": "123456"}  # Akun dummy demo
+    st.session_state["users_db"] = {"siswa": "123456"}  # Database pengguna sementara
 
 # ---------------------------------------------------------
 # 3. HALAMAN LOGIN / REGISTER / GUEST MODE
 # ---------------------------------------------------------
 if not st.session_state["logged_in"]:
     st.title("🎓 PathFinder AI")
-    st.caption("Platform AI Pemetaan Karir, Peluang Kampus, dan Portofolio Pelajar")
+    st.caption("Platform Pemetaan Karir, Peluang Kampus, dan Analisis Portofolio Berbasis AI")
     st.markdown("---")
 
     col_login, col_guest = st.columns(2)
 
-    # OPSI A: LOGIN / REGISTER (Member Serius)
+    # OPSI A: LOGIN / REGISTER (Member)
     with col_login:
         st.subheader("🔐 Akun Member")
-        st.write("Masuk untuk menyimpan riwayat analisis secara permanen.")
+        st.write("Masuk ke akun Anda untuk menyimpan riwayat analisis secara permanen.")
         
         tab_login, tab_register = st.tabs(["Masuk", "Daftar Akun"])
         
@@ -63,37 +63,35 @@ if not st.session_state["logged_in"]:
                         st.session_state["users_db"][new_user] = new_pass
                         st.success("Akun berhasil dibuat! Silakan klik tab 'Masuk'.")
                 else:
-                    st.warning("Isi username dan password.")
+                    st.warning("Mohon isi username dan password.")
 
-    # OPSI B: GUEST MODE (Demo Cepat Juri)
+    # OPSI B: MODE TAMU (Uji Coba Langsung)
     with col_guest:
-        st.subheader("🚀 Mode Guest (Coba Instan)")
-        st.write("Akses langsung tanpa daftar akun. Cocok untuk uji coba cepat.")
-        st.info("💡 **Tips Presentasi:** Gunakan mode ini saat demo di depan juri.")
+        st.subheader("🚀 Mode Tamu (Akses Cepat)")
+        st.write("Jelajahi fitur pemetaan karir dan rekomendasi kampus secara instan tanpa perlu pendaftaran.")
+        st.info("💡 **Akses Cepat:** Mode ini cocok untuk Anda yang ingin langsung mencoba simulasi analisis AI.")
         
-        guest_name = st.text_input("Nama / Inisial Pengunjung:", placeholder="Contoh: Pengunjung / Juri 1")
-        if st.button("Lanjutkan sebagai Guest ➡️"):
+        guest_name = st.text_input("Nama / Panggilan:", placeholder="Contoh: Budi")
+        if st.button("Lanjutkan sebagai Tamu ➡️"):
             st.session_state["logged_in"] = True
             st.session_state["user_type"] = "guest"
-            st.session_state["username"] = guest_name if guest_name else "Guest User"
+            st.session_state["username"] = guest_name if guest_name else "Pengunjung"
             st.rerun()
 
     st.stop()
 
 # ---------------------------------------------------------
-# 4. PEMBACAAN API KEY OTOMATIS (SECRETS / FALLBACK)
+# 4. PEMBACAAN API KEY OTOMATIS (SECRETS)
 # ---------------------------------------------------------
-# Mengambil API key dari Streamlit Secrets jika ada
 if "GEMINI_API_KEY" in st.secrets:
     api_key = st.secrets["GEMINI_API_KEY"]
 else:
-    # Cadangan jika diuji di komputer lokal tanpa file secrets
     with st.sidebar:
-        st.header("⚙️ Pengaturan Lokal")
+        st.header("⚙️ Pengaturan Sistem")
         api_key = st.text_input("Masukkan Gemini API Key (Lokal):", type="password")
 
 # ---------------------------------------------------------
-# 5. DASHBOARD UTAMA (SETELAH LOG IN)
+# 5. DASHBOARD UTAMA
 # ---------------------------------------------------------
 
 # SIDEBAR NAVIGASI PROFIL
@@ -102,7 +100,7 @@ with st.sidebar:
     if st.session_state["user_type"] == "member":
         st.success(f"Member: **{st.session_state['username']}**")
     else:
-        st.warning(f"Guest: **{st.session_state['username']}**")
+        st.warning(f"Tamu: **{st.session_state['username']}**")
     
     if st.button("Keluar / Ganti Akun"):
         st.session_state["logged_in"] = False
@@ -115,7 +113,7 @@ st.title("🎓 PathFinder AI")
 st.caption("Analisis Peluang PTN/PTS, Evaluasi Budget UKT, dan Rekomendasi Portofolio")
 st.markdown("---")
 
-# FORM INPUT PERTANYAAN WAJIB (CONTOH UMUM)
+# FORM INPUT PERTANYAAN
 st.subheader("📋 Form Data Pelajar & Target Akademik")
 with st.form("student_form"):
     col1, col2 = st.columns(2)
@@ -154,14 +152,14 @@ with st.form("student_form"):
     st.markdown("---")
     st.markdown("### 🛠️ Modal Skill & Portofolio Saat Ini")
     skill_dimiliki = st.text_area("Skill & Keahlian yang Dikuasai:*", placeholder="Contoh: Dasar pemrograman, desain grafis Canva, penulisan artikel, Bahasa Inggris, kepemimpinan.", height=100)
-    proyek_prestasi = st.text_area("Pengalaman Proyek / Karya / Lomba:", placeholder="Contoh: Pengurus OSIS, panitia kegiatan sekolah, membuat web sederhana, juara lomba esai.", height=100)
+    proyek_prestasi = st.text_area("Pengalaman Proyek / Karya / Aktivitas:", placeholder="Contoh: Pengurus OSIS, panitia kegiatan sekolah, membuat web sederhana, pembuatan konten digital.", height=100)
 
     submit_button = st.form_submit_button("🚀 Jalankan Analisis AI Completeness & Feasibility")
 
 # PEMPROSESAN GEMINI API
 if submit_button:
     if not api_key:
-        st.error("❌ API Key belum terpasang. Pastikan Secrets sudah diatur di Streamlit Cloud.")
+        st.error("❌ Layanan AI belum siap. Konfigurasi API Key di sistem belum terdeteksi.")
     elif not target_bidang or not univ_1 or not univ_2 or not univ_3 or not skill_dimiliki:
         st.warning("⚠️ Mohon lengkapi semua kolom yang bertanda bintang (*).")
     else:
@@ -203,8 +201,8 @@ if submit_button:
             """
 
             user_payload = f"""
-            Data Murid:
-            - Nama: {nama if nama else 'Murid'}
+            Data Pengguna:
+            - Nama: {nama if nama else 'Pengguna'}
             - Kelas: {kelas}
             - Nilai Rapor: {rata_rapor}
             - Target Bidang: {target_bidang}
@@ -218,7 +216,7 @@ if submit_button:
             
             Modal Skill & Portofolio:
             - Skill: {skill_dimiliki}
-            - Proyek/Lomba: {proyek_prestasi if proyek_prestasi else 'Belum ada'}
+            - Proyek/Pengalaman: {proyek_prestasi if proyek_prestasi else 'Belum ada'}
             """
 
             with st.spinner("AI sedang menganalisis data universitas, budget, dan skill gap..."):
