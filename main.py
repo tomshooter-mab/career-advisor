@@ -164,8 +164,8 @@ if submit_button:
     elif not target_bidang or not univ_1 or not univ_2 or not univ_3 or not skill_dimiliki:
         st.warning("⚠️ Mohon lengkapi semua kolom yang bertanda bintang (*).")
     else:
-        # Model Llama cerdas dari Groq (super cepat & stabil)
-        models_to_try = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant']
+        # Model aktif & resmi dari Groq Cloud
+        models_to_try = ['llama-3.3-70b-versatile', 'llama3-8b-8192', 'gemma2-9b-it']
         
         response_text = None
         success = False
@@ -241,7 +241,7 @@ if submit_button:
                     success = True
                     break
                 except Exception as e:
-                    last_error = str(e)
+                    last_error = f"Model {model_name} gagal: {str(e)}"
                     continue
 
             if success and response_text:
