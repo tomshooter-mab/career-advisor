@@ -1,5 +1,5 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
 
 # ---------------------------------------------------------
 # 1. KONFIGURASI HALAMAN WEB
@@ -112,7 +112,7 @@ st.title("🎓 PathFinder AI")
 st.caption("Analisis Peluang PTN/PTS, Evaluasi Budget UKT, dan Rekomendasi Portofolio")
 st.markdown("---")
 
-# FORM INPUT PERTANYAAN
+# FORM INPUT DATA
 st.subheader("📋 Form Data Pelajar & Target Akademik")
 with st.form("student_form"):
     col1, col2 = st.columns(2)
@@ -122,7 +122,7 @@ with st.form("student_form"):
         nama = st.text_input("Nama Lengkap / Inisial:", value=st.session_state["username"] if st.session_state["user_type"] == "member" else "")
         kelas = st.selectbox("Kelas / Jenjang Saat Ini:", ["SMA/SMK Kelas 10", "SMA/SMK Kelas 11", "SMA/SMK Kelas 12", "Gap Year"])
         rata_rapor = st.number_input("Rata-rata Nilai Rapor (Skala 100):", min_value=0.0, max_value=100.0, value=85.0, step=0.5)
-        target_bidang = st.text_input("Target Bidang / Jurusan Impian:*", placeholder="Contoh: Teknik Informatika / Bisnis Manajemen / Desain Grafis")
+        target_bidang = st.text_input("Target Bidang / Jurusan Impian:*", placeholder="Contoh: Teknik Informatika / Computer Science / Bisnis")
 
     with col2:
         st.markdown("### 💰 Biaya & Finansial")
@@ -136,114 +136,128 @@ with st.form("student_form"):
                 "> Rp25.000.000 / semester (Sanggup Mandiri/PTS Khusus)"
             ]
         )
-        lokasi_favorit = st.text_input("Preferensi Wilayah Kampus:", placeholder="Contoh: Jawa Barat, Jawa Timur, Jabodetabek, atau Bebas")
+        lokasi_favorit = st.text_input("Preferensi Wilayah Kampus:", placeholder="Contoh: Jawa Timur, Jawa Barat, Jabodetabek, atau Bebas")
 
     st.markdown("---")
     st.markdown("### 🏛️ Target Universitas Pilihan (Wajib 3 Pilihan)")
     uc1, uc2, uc3 = st.columns(3)
     with uc1:
-        univ_1 = st.text_input("Pilihan 1 (Utama):*", placeholder="Contoh: PTN / PTS Pilihan Utama")
+        univ_1 = st.text_input("Pilihan 1 (Utama):*", placeholder="Contoh: BINUS Malang")
     with uc2:
-        univ_2 = st.text_input("Pilihan 2 (Cadangan 1):*", placeholder="Contoh: PTN / PTS Cadangan Pertama")
+        univ_2 = st.text_input("Pilihan 2 (Cadangan 1):*", placeholder="Contoh: Universitas Surabaya")
     with uc3:
-        univ_3 = st.text_input("Pilihan 3 (Cadangan 2):*", placeholder="Contoh: PTN / PTS Cadangan Kedua")
+        univ_3 = st.text_input("Pilihan 3 (Cadangan 2):*", placeholder="Contoh: Universitas Brawijaya")
 
     st.markdown("---")
     st.markdown("### 🛠️ Modal Skill & Portofolio Saat Ini")
-    skill_dimiliki = st.text_area("Skill & Keahlian yang Dikuasai:*", placeholder="Contoh: Dasar pemrograman, desain grafis Canva, penulisan artikel, Bahasa Inggris, kepemimpinan.", height=100)
-    proyek_prestasi = st.text_area("Pengalaman Proyek / Karya / Aktivitas:", placeholder="Contoh: Pengurus OSIS, panitia kegiatan sekolah, membuat web sederhana, pembuatan konten digital.", height=100)
+    skill_dimiliki = st.text_area("Skill & Keahlian yang Dikuasai:*", placeholder="Contoh: Dasar pemrograman Python, C++, pembuatan GUI Tkinter, Bahasa Inggris, logika matematika.", height=100)
+    proyek_prestasi = st.text_area("Pengalaman Proyek / Karya / Aktivitas:", placeholder="Contoh: Proyek kalkulator Tkinter, proyek visualisasi data Python, lomba OSK Fisika, panitia sekolah.", height=100)
 
     submit_button = st.form_submit_button("🚀 Jalankan Analisis AI Completeness & Feasibility")
 
 # ---------------------------------------------------------
-# 6. PEMPROSESAN GOOGLE GEMINI API
+# 6. PEMPROSESAN GOOGLE GEMINI API (MENGGUNAKAN SDK GOOGLE-GENAI)
 # ---------------------------------------------------------
 if submit_button:
     if not api_key:
-        st.error("❌ Layanan AI belum siap. Konfigurasi Gemini API Key di sistem belum terdeteksi.")
+        st.error("❌ Layanan AI belum siap. Konfigurasi Gemini API Key di secrets belum terdeteksi.")
     elif not target_bidang or not univ_1 or not univ_2 or not univ_3 or not skill_dimiliki:
         st.warning("⚠️ Mohon lengkapi semua kolom yang bertanda bintang (*).")
     else:
-        # Model Gemini yang cepat & stabil
-        models_to_try = ['gemini-1.5-flash', 'gemini-1.5-pro']
+        # Urutan Model: Mengutamakan model seri Gemini 3, lalu fallback ke versi Flash/Pro lainnya jika tidak tersedia
+        models_to_try = [
+            'gemini-3-flash',
+            'gemini-3-pro-preview',
+            'gemini-2.5-flash',
+            'gemini-2.0-flash',
+            'gemini-1.5-flash'
+        ]
         
         response_text = None
-        success = False
+        used_model_name = None
         errors_log = []
 
         with st.spinner("AI sedang menganalisis data universitas, budget, dan skill gap..."):
-            genai.configure(api_key=api_key)
-            
-            system_prompt = """
-            Kamu adalah Konsultan Karir, Pengamat Penerimaan Mahasiswa Baru, dan Advisor Portofolio Akademik profesional.
-            Berikan analisis objektif, rasional, dan konstruktif dalam bahasa Indonesia yang baik dengan format Markdown berikut:
-            
-            ## 📊 1. Evaluasi Kecocokan Bidang (Field Alignment Score)
-            - **Tingkat Kecocokan:** [Beri persentase 0-100%]
-            - **Analisis Kualitatif:** Keselarasan antara minat, skill saat ini, dan target karir.
+            try:
+                # Inisialisasi client resmi google-genai
+                client = genai.Client(api_key=api_key)
+                
+                system_prompt = """
+                Kamu adalah Konsultan Karir, Pengamat Penerimaan Mahasiswa Baru, dan Advisor Portofolio Akademik profesional.
+                Berikan analisis objektif, rasional, dan konstruktif dalam bahasa Indonesia yang baik dengan format Markdown berikut:
+                
+                ## 📊 1. Evaluasi Kecocokan Bidang (Field Alignment Score)
+                - **Tingkat Kecocokan:** [Beri persentase 0-100%]
+                - **Analisis Kualitatif:** Keselarasan antara minat, skill saat ini, dan target karir.
 
-            ## 🏛️ 2. Analisis Peluang Diterima & Kelayakan Biaya (University Feasibility)
-            Evaluasi ketiga universitas target berdasarkan persaingan, modal skill/nilai, dan budget:
-            - **Pilihan 1: [Nama Univ 1]**
-              - *Estimasi Peluang Diterima:* [Tinggi / Sedang / Cenderung Berisiko / Sangat Sulit]
-              - *Analisis Skill vs Persaingan:* Apakah modal skill & nilai memadai?
-              - *Kesesuaian Budget:* Apakah perkiraan UKT sesuai rentang budget?
-            - **Pilihan 2: [Nama Univ 2]**
-              - *Estimasi Peluang Diterima:* [Tinggi / Sedang / Cenderung Berisiko / Sangat Sulit]
-              - *Analisis Skill vs Persaingan:* ...
-              - *Kesesuaian Budget:* ...
-            - **Pilihan 3: [Nama Univ 3]**
-              - *Estimasi Peluang Diterima:* [Tinggi / Sedang / Cenderung Berisiko / Sangat Sulit]
-              - *Analisis Skill vs Persaingan:* ...
-              - *Kesesuaian Budget:* ...
+                ## 🏛️ 2. Analisis Peluang Diterima & Kelayakan Biaya (University Feasibility)
+                Evaluasi ketiga universitas target berdasarkan persaingan, modal skill/nilai, dan budget:
+                - **Pilihan 1: [Nama Univ 1]**
+                  - *Estimasi Peluang Diterima:* [Tinggi / Sedang / Cenderung Berisiko / Sangat Sulit]
+                  - *Analisis Skill vs Persaingan:* Apakah modal skill & nilai memadai?
+                  - *Kesesuaian Budget:* Apakah perkiraan UKT sesuai rentang budget?
+                - **Pilihan 2: [Nama Univ 2]**
+                  - *Estimasi Peluang Diterima:* [Tinggi / Sedang / Cenderung Berisiko / Sangat Sulit]
+                  - *Analisis Skill vs Persaingan:* ...
+                  - *Kesesuaian Budget:* ...
+                - **Pilihan 3: [Nama Univ 3]**
+                  - *Estimasi Peluang Diterima:* [Tinggi / Sedang / Cenderung Berisiko / Sangat Sulit]
+                  - *Analisis Skill vs Persaingan:* ...
+                  - *Kesesuaian Budget:* ...
 
-            ## 🔄 3. Opsi Alternatif Cadangan (Rencana Kontingensi)
-            - **2 Alternatif Universitas/Jurusan Lain** yang sejenis, passing grade aman, dan pas dengan budget serta skill saat ini.
+                ## 🔄 3. Opsi Alternatif Cadangan (Rencana Kontingensi)
+                - **2 Alternatif Universitas/Jurusan Lain** yang sejenis, passing grade aman, dan pas dengan budget serta skill saat ini.
 
-            ## 🛠️ 4. Skill Gap & Rencana Portofolio
-            - **Skill Gap:** 3 skill utama yang MASIH KURANG dan WAJIB dipelajari.
-            - **3 Ide Proyek Portofolio Nyata:** (Tingkat Dasar, Menengah, Lanjutan)
+                ## 🛠️ 4. Skill Gap & Rencana Portofolio
+                - **Skill Gap:** 3 skill utama yang MASIH KURANG dan WAJIB dipelajari.
+                - **3 Ide Proyek Portofolio Nyata:** (Tingkat Dasar, Menengah, Lanjutan)
 
-            ## ⚡ 5. Langkah Nyata Pekan Ini (Action Plan)
-            - 3 tindakan konkret minggu ini.
-            """
+                ## ⚡ 5. Langkah Nyata Pekan Ini (Action Plan)
+                - 3 tindakan konkret minggu ini.
+                """
 
-            user_payload = f"""
-            Data Pengguna:
-            - Nama: {nama if nama else 'Pengguna'}
-            - Kelas: {kelas}
-            - Nilai Rapor: {rata_rapor}
-            - Target Bidang: {target_bidang}
-            - Budget Kuliah: {budget_kuliah}
-            - Preferensi Lokasi: {lokasi_favorit if lokasi_favorit else 'Bebas'}
-            
-            Target Universitas:
-            - Pilihan 1: {univ_1}
-            - Pilihan 2: {univ_2}
-            - Pilihan 3: {univ_3}
-            
-            Modal Skill & Portofolio:
-            - Skill: {skill_dimiliki}
-            - Proyek/Pengalaman: {proyek_prestasi if proyek_prestasi else 'Belum ada'}
-            """
+                user_payload = f"""
+                Data Pengguna:
+                - Nama: {nama if nama else 'Pengguna'}
+                - Kelas: {kelas}
+                - Nilai Rapor: {rata_rapor}
+                - Target Bidang: {target_bidang}
+                - Budget Kuliah: {budget_kuliah}
+                - Preferensi Lokasi: {lokasi_favorit if lokasi_favorit else 'Bebas'}
+                
+                Target Universitas:
+                - Pilihan 1: {univ_1}
+                - Pilihan 2: {univ_2}
+                - Pilihan 3: {univ_3}
+                
+                Modal Skill & Portofolio:
+                - Skill: {skill_dimiliki}
+                - Proyek/Pengalaman: {proyek_prestasi if proyek_prestasi else 'Belum ada'}
+                """
 
-            full_prompt = f"{system_prompt}\n\n{user_payload}"
+                full_prompt = f"{system_prompt}\n\n{user_payload}"
 
-            for model_name in models_to_try:
-                try:
-                    model = genai.GenerativeModel(model_name)
-                    response = model.generate_content(full_prompt)
-                    response_text = response.text
-                    success = True
-                    break
-                except Exception as e:
-                    errors_log.append(f"**{model_name}**: {str(e)}")
-                    continue
+                # Percobaan memanggil model secara berurutan
+                for model_name in models_to_try:
+                    try:
+                        response = client.models.generate_content(
+                            model=model_name,
+                            contents=full_prompt,
+                        )
+                        response_text = response.text
+                        used_model_name = model_name
+                        break
+                    except Exception as e:
+                        errors_log.append(f"**{model_name}**: {str(e)}")
+                        continue
 
-            if success and response_text:
-                st.success("🎉 Analisis Portofolio & Kelayakan Kampus Selesai!")
+            except Exception as e:
+                st.error(f"Gagal menginisialisasi Client GenAI: {e}")
+
+            if response_text:
+                st.success(f"🎉 Analisis Selesai (Menggunakan Engine: `{used_model_name}`)!")
                 st.markdown(response_text)
             else:
-                st.error("❌ Gagal terhubung ke layanan Gemini. Detail kendala:")
+                st.error("❌ Gagal terhubung ke layanan Gemini. Detail kendala pada seluruh model:")
                 for err in errors_log:
                     st.write(f"- {err}")
