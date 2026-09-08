@@ -164,8 +164,13 @@ if submit_button:
     elif not target_bidang or not univ_1 or not univ_2 or not univ_3 or not skill_dimiliki:
         st.warning("⚠️ Mohon lengkapi semua kolom yang bertanda bintang (*).")
     else:
-        # Daftar model aktif & resmi dari Groq Cloud
-        models_to_try = ['llama-3.3-70b-versatile', 'llama-3.2-3b-preview', 'llama-3.2-1b-preview']
+        # Daftar model produksi stabil dari Groq
+        models_to_try = [
+            'llama3-70b-8192',
+            'llama3-8b-8192',
+            'mixtral-8x7b-32768',
+            'llama-3.3-70b-versatile'
+        ]
         
         response_text = None
         success = False
