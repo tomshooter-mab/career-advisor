@@ -164,13 +164,10 @@ if submit_button:
     elif not target_bidang or not univ_1 or not univ_2 or not univ_3 or not skill_dimiliki:
         st.warning("⚠️ Mohon lengkapi semua kolom yang bertanda bintang (*).")
     else:
-        # Urutan Model: Mengutamakan model seri Gemini 3, lalu fallback ke versi Flash/Pro lainnya jika tidak tersedia
+        # Gunakan string model resmi yang didukung API saat ini
         models_to_try = [
-            'gemini-3-flash',
-            'gemini-3-pro-preview',
-            'gemini-2.5-flash',
-            'gemini-2.0-flash',
-            'gemini-1.5-flash'
+            'gemini-3.6-flash',
+            'gemini-3.1-pro-preview'
         ]
         
         response_text = None
