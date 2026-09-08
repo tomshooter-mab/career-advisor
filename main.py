@@ -157,7 +157,7 @@ with st.form("student_form"):
     submit_button = st.form_submit_button("🚀 Jalankan Analisis AI Completeness & Feasibility")
 
 # ---------------------------------------------------------
-# 6. PEMPROSESAN GEMINI API (DENGAN AUTOMATIC FALLBACK)
+# 6. PEMPROSESAN GEMINI API (TRANSPARENT ERROR HANDLING)
 # ---------------------------------------------------------
 if submit_button:
     if not api_key:
@@ -165,11 +165,12 @@ if submit_button:
     elif not target_bidang or not univ_1 or not univ_2 or not univ_3 or not skill_dimiliki:
         st.warning("⚠️ Mohon lengkapi semua kolom yang bertanda bintang (*).")
     else:
-        # Urutan model alternatif jika server mengalami kendala/overload
+        # Daftar model yang dicoba berurutan
         models_to_try = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
         
         response = None
         success = False
+        last_error = ""
 
         with st.spinner("AI sedang menganalisis data universitas, budget, dan skill gap..."):
             client = genai.Client(api_key=api_key)
@@ -227,7 +228,6 @@ if submit_button:
             - Proyek/Pengalaman: {proyek_prestasi if proyek_prestasi else 'Belum ada'}
             """
 
-            # Mencoba model satu per satu secara otomatis jika terjadi overload (503)
             for model_name in models_to_try:
                 try:
                     response = client.models.generate_content(
@@ -239,12 +239,13 @@ if submit_button:
                         )
                     )
                     success = True
-                    break  # Berhasil, keluar dari perulangan
+                    break
                 except Exception as e:
-                    continue  # Jika gagal/overload, langsung coba model berikutnya
+                    last_error = str(e)
+                    continue
 
             if success and response:
                 st.success("🎉 Analisis Portofolio & Kelayakan Kampus Selesai!")
                 st.markdown(response.text)
             else:
-                st.error("Server AI sedang mengalami pemeliharaan/overload. Silakan tunggu 10 detik lalu coba klik tombol lagi.")
+                st.error(f"❌ Detail Error dari Google: {last_error}")
