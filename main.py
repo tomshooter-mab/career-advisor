@@ -1,5 +1,5 @@
 import streamlit as st
-from openai import OpenAI
+import google.generativeai as genai
 
 # ---------------------------------------------------------
 # 1. KONFIGURASI HALAMAN WEB
@@ -82,12 +82,12 @@ if not st.session_state["logged_in"]:
 # ---------------------------------------------------------
 # 4. PEMBACAAN API KEY OTOMATIS (SECRETS)
 # ---------------------------------------------------------
-if "GITHUB_TOKEN" in st.secrets:
-    api_key = st.secrets["GITHUB_TOKEN"]
+if "GEMINI_API_KEY" in st.secrets:
+    api_key = st.secrets["GEMINI_API_KEY"]
 else:
     with st.sidebar:
         st.header("⚙️ Pengaturan Sistem")
-        api_key = st.text_input("Masukkan GitHub Token (Lokal):", type="password")
+        api_key = st.text_input("Masukkan Gemini API Key (Lokal):", type="password")
 
 # ---------------------------------------------------------
 # 5. DASHBOARD UTAMA
@@ -156,28 +156,23 @@ with st.form("student_form"):
     submit_button = st.form_submit_button("🚀 Jalankan Analisis AI Completeness & Feasibility")
 
 # ---------------------------------------------------------
-# 6. PEMPROSESAN GITHUB MODELS API (WITH TIMEOUT 30 DETIK)
+# 6. PEMPROSESAN GOOGLE GEMINI API
 # ---------------------------------------------------------
 if submit_button:
     if not api_key:
-        st.error("❌ Layanan AI belum siap. Konfigurasi GitHub Token di sistem belum terdeteksi.")
+        st.error("❌ Layanan AI belum siap. Konfigurasi Gemini API Key di sistem belum terdeteksi.")
     elif not target_bidang or not univ_1 or not univ_2 or not univ_3 or not skill_dimiliki:
         st.warning("⚠️ Mohon lengkapi semua kolom yang bertanda bintang (*).")
     else:
-        # Model produksi stabil di GitHub Models
-        models_to_try = ['gpt-4o-mini', 'Llama-3.3-70B-Instruct', 'Mistral-large-2411']
+        # Model Gemini yang cepat & stabil
+        models_to_try = ['gemini-1.5-flash', 'gemini-1.5-pro']
         
         response_text = None
         success = False
         errors_log = []
 
         with st.spinner("AI sedang menganalisis data universitas, budget, dan skill gap..."):
-            # Inisialisasi client OpenAI dengan timeout 30 detik
-            client = OpenAI(
-                base_url="https://models.inference.ai.azure.com",
-                api_key=api_key,
-                timeout=30.0  # <--- PARAMETER 30 DETIK DITAMBAHKAN DI SINI
-            )
+            genai.configure(api_key=api_key)
             
             system_prompt = """
             Kamu adalah Konsultan Karir, Pengamat Penerimaan Mahasiswa Baru, dan Advisor Portofolio Akademik profesional.
@@ -232,17 +227,13 @@ if submit_button:
             - Proyek/Pengalaman: {proyek_prestasi if proyek_prestasi else 'Belum ada'}
             """
 
+            full_prompt = f"{system_prompt}\n\n{user_payload}"
+
             for model_name in models_to_try:
                 try:
-                    chat_completion = client.chat.completions.create(
-                        messages=[
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": user_payload}
-                        ],
-                        model=model_name,
-                        temperature=0.4,
-                    )
-                    response_text = chat_completion.choices[0].message.content
+                    model = genai.GenerativeModel(model_name)
+                    response = model.generate_content(full_prompt)
+                    response_text = response.text
                     success = True
                     break
                 except Exception as e:
@@ -253,6 +244,6 @@ if submit_button:
                 st.success("🎉 Analisis Portofolio & Kelayakan Kampus Selesai!")
                 st.markdown(response_text)
             else:
-                st.error("❌ Gagal terhubung ke layanan AI. Detail kendala:")
+                st.error("❌ Gagal terhubung ke layanan Gemini. Detail kendala:")
                 for err in errors_log:
                     st.write(f"- {err}")
