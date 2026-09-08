@@ -1,6 +1,5 @@
 import streamlit as st
-from google import genai
-from google.genai import types
+from groq import Groq
 
 # ---------------------------------------------------------
 # 1. KONFIGURASI HALAMAN WEB
@@ -83,12 +82,12 @@ if not st.session_state["logged_in"]:
 # ---------------------------------------------------------
 # 4. PEMBACAAN API KEY OTOMATIS (SECRETS)
 # ---------------------------------------------------------
-if "GEMINI_API_KEY" in st.secrets:
-    api_key = st.secrets["GEMINI_API_KEY"]
+if "GROQ_API_KEY" in st.secrets:
+    api_key = st.secrets["GROQ_API_KEY"]
 else:
     with st.sidebar:
         st.header("⚙️ Pengaturan Sistem")
-        api_key = st.text_input("Masukkan Gemini API Key (Lokal):", type="password")
+        api_key = st.text_input("Masukkan Groq API Key (Lokal):", type="password")
 
 # ---------------------------------------------------------
 # 5. DASHBOARD UTAMA
@@ -157,27 +156,27 @@ with st.form("student_form"):
     submit_button = st.form_submit_button("🚀 Jalankan Analisis AI Completeness & Feasibility")
 
 # ---------------------------------------------------------
-# 6. PEMPROSESAN GEMINI API (TRANSPARENT ERROR HANDLING & FALLBACK)
+# 6. PEMPROSESAN GROQ API
 # ---------------------------------------------------------
 if submit_button:
     if not api_key:
-        st.error("❌ Layanan AI belum siap. Konfigurasi API Key di sistem belum terdeteksi.")
+        st.error("❌ Layanan AI belum siap. Konfigurasi Groq API Key di sistem belum terdeteksi.")
     elif not target_bidang or not univ_1 or not univ_2 or not univ_3 or not skill_dimiliki:
         st.warning("⚠️ Mohon lengkapi semua kolom yang bertanda bintang (*).")
     else:
-        # Urutan model aktif yang akan dicoba jika terjadi server overload (503)
-        models_to_try = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.0-flash']
+        # Model Llama cerdas dari Groq (super cepat & stabil)
+        models_to_try = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant']
         
-        response = None
+        response_text = None
         success = False
         last_error = ""
 
         with st.spinner("AI sedang menganalisis data universitas, budget, dan skill gap..."):
-            client = genai.Client(api_key=api_key)
+            client = Groq(api_key=api_key)
             
             system_prompt = """
             Kamu adalah Konsultan Karir, Pengamat Penerimaan Mahasiswa Baru, dan Advisor Portofolio Akademik profesional.
-            Berikan analisis objektif, rasional, dan konstruktif dalam format Markdown berikut:
+            Berikan analisis objektif, rasional, dan konstruktif dalam bahasa Indonesia yang baik dengan format Markdown berikut:
             
             ## 📊 1. Evaluasi Kecocokan Bidang (Field Alignment Score)
             - **Tingkat Kecocokan:** [Beri persentase 0-100%]
@@ -230,26 +229,23 @@ if submit_button:
 
             for model_name in models_to_try:
                 try:
-                    response = client.models.generate_content(
+                    chat_completion = client.chat.completions.create(
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_payload}
+                        ],
                         model=model_name,
-                        contents=user_payload,
-                        config=types.GenerateContentConfig(
-                            system_instruction=system_prompt,
-                            temperature=0.4
-                        )
+                        temperature=0.4,
                     )
+                    response_text = chat_completion.choices[0].message.content
                     success = True
                     break
                 except Exception as e:
                     last_error = str(e)
-                    # Hanya lanjut ke model berikutnya jika errornya karena 503/UNAVAILABLE (Server sibuk)
-                    if "503" in str(e) or "UNAVAILABLE" in str(e):
-                        continue
-                    else:
-                        break
+                    continue
 
-            if success and response:
+            if success and response_text:
                 st.success("🎉 Analisis Portofolio & Kelayakan Kampus Selesai!")
-                st.markdown(response.text)
+                st.markdown(response_text)
             else:
-                st.error(f"❌ Detail Error dari Google: {last_error}")
+                st.error(f"❌ Detail Error dari Groq: {last_error}")
