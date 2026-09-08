@@ -156,7 +156,7 @@ with st.form("student_form"):
     submit_button = st.form_submit_button("🚀 Jalankan Analisis AI Completeness & Feasibility")
 
 # ---------------------------------------------------------
-# 6. PEMPROSESAN GITHUB MODELS API
+# 6. PEMPROSESAN GITHUB MODELS API (WITH TIMEOUT 30 DETIK)
 # ---------------------------------------------------------
 if submit_button:
     if not api_key:
@@ -172,10 +172,11 @@ if submit_button:
         errors_log = []
 
         with st.spinner("AI sedang menganalisis data universitas, budget, dan skill gap..."):
-            # Client OpenAI mengarah ke endpoint GitHub Models
+            # Inisialisasi client OpenAI dengan timeout 30 detik
             client = OpenAI(
                 base_url="https://models.inference.ai.azure.com",
                 api_key=api_key,
+                timeout=30.0  # <--- PARAMETER 30 DETIK DITAMBAHKAN DI SINI
             )
             
             system_prompt = """
@@ -252,6 +253,6 @@ if submit_button:
                 st.success("🎉 Analisis Portofolio & Kelayakan Kampus Selesai!")
                 st.markdown(response_text)
             else:
-                st.error("❌ Gagal terhubung ke layanan GitHub Models. Detail kendala:")
+                st.error("❌ Gagal terhubung ke layanan AI. Detail kendala:")
                 for err in errors_log:
                     st.write(f"- {err}")
