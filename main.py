@@ -65,7 +65,7 @@ if not st.session_state["logged_in"]:
                 else:
                     st.warning("Mohon isi username dan password.")
 
-    # OPSI B: MODE TAMU (Uji Coba Langsung)
+    # OPSI B: MODE TAMU (Akses Cepat)
     with col_guest:
         st.subheader("🚀 Mode Tamu (Akses Cepat)")
         st.write("Jelajahi fitur pemetaan karir dan rekomendasi kampus secara instan tanpa perlu pendaftaran.")
@@ -156,14 +156,22 @@ with st.form("student_form"):
 
     submit_button = st.form_submit_button("🚀 Jalankan Analisis AI Completeness & Feasibility")
 
-# PEMPROSESAN GEMINI API
+# ---------------------------------------------------------
+# 6. PEMPROSESAN GEMINI API (DENGAN AUTOMATIC FALLBACK)
+# ---------------------------------------------------------
 if submit_button:
     if not api_key:
         st.error("❌ Layanan AI belum siap. Konfigurasi API Key di sistem belum terdeteksi.")
     elif not target_bidang or not univ_1 or not univ_2 or not univ_3 or not skill_dimiliki:
         st.warning("⚠️ Mohon lengkapi semua kolom yang bertanda bintang (*).")
     else:
-        try:
+        # Urutan model alternatif jika server mengalami kendala/overload
+        models_to_try = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+        
+        response = None
+        success = False
+
+        with st.spinner("AI sedang menganalisis data universitas, budget, dan skill gap..."):
             client = genai.Client(api_key=api_key)
             
             system_prompt = """
@@ -219,18 +227,24 @@ if submit_button:
             - Proyek/Pengalaman: {proyek_prestasi if proyek_prestasi else 'Belum ada'}
             """
 
-            with st.spinner("AI sedang menganalisis data universitas, budget, dan skill gap..."):
-                response = client.models.generate_content(
-                    model='gemini-3.6-flash',
-                    contents=user_payload,
-                    config=types.GenerateContentConfig(
-                        system_instruction=system_prompt,
-                        temperature=0.4
+            # Mencoba model satu per satu secara otomatis jika terjadi overload (503)
+            for model_name in models_to_try:
+                try:
+                    response = client.models.generate_content(
+                        model=model_name,
+                        contents=user_payload,
+                        config=types.GenerateContentConfig(
+                            system_instruction=system_prompt,
+                            temperature=0.4
+                        )
                     )
-                )
+                    success = True
+                    break  # Berhasil, keluar dari perulangan
+                except Exception as e:
+                    continue  # Jika gagal/overload, langsung coba model berikutnya
 
+            if success and response:
                 st.success("🎉 Analisis Portofolio & Kelayakan Kampus Selesai!")
                 st.markdown(response.text)
-
-        except Exception as e:
-            st.error(f"Terjadi kesalahan teknis: {e}")
+            else:
+                st.error("Server AI sedang mengalami pemeliharaan/overload. Silakan tunggu 10 detik lalu coba klik tombol lagi.")
