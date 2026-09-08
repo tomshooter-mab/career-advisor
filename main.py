@@ -1,5 +1,5 @@
 import streamlit as st
-from groq import Groq
+from openai import OpenAI
 
 # ---------------------------------------------------------
 # 1. KONFIGURASI HALAMAN WEB
@@ -82,12 +82,12 @@ if not st.session_state["logged_in"]:
 # ---------------------------------------------------------
 # 4. PEMBACAAN API KEY OTOMATIS (SECRETS)
 # ---------------------------------------------------------
-if "GROQ_API_KEY" in st.secrets:
-    api_key = st.secrets["GROQ_API_KEY"]
+if "GITHUB_TOKEN" in st.secrets:
+    api_key = st.secrets["GITHUB_TOKEN"]
 else:
     with st.sidebar:
         st.header("⚙️ Pengaturan Sistem")
-        api_key = st.text_input("Masukkan Groq API Key (Lokal):", type="password")
+        api_key = st.text_input("Masukkan GitHub Token (Lokal):", type="password")
 
 # ---------------------------------------------------------
 # 5. DASHBOARD UTAMA
@@ -156,28 +156,27 @@ with st.form("student_form"):
     submit_button = st.form_submit_button("🚀 Jalankan Analisis AI Completeness & Feasibility")
 
 # ---------------------------------------------------------
-# 6. PEMPROSESAN GROQ API
+# 6. PEMPROSESAN GITHUB MODELS API
 # ---------------------------------------------------------
 if submit_button:
     if not api_key:
-        st.error("❌ Layanan AI belum siap. Konfigurasi Groq API Key di sistem belum terdeteksi.")
+        st.error("❌ Layanan AI belum siap. Konfigurasi GitHub Token di sistem belum terdeteksi.")
     elif not target_bidang or not univ_1 or not univ_2 or not univ_3 or not skill_dimiliki:
         st.warning("⚠️ Mohon lengkapi semua kolom yang bertanda bintang (*).")
     else:
-        # Daftar model produksi stabil dari Groq
-        models_to_try = [
-            'llama3-70b-8192',
-            'llama3-8b-8192',
-            'mixtral-8x7b-32768',
-            'llama-3.3-70b-versatile'
-        ]
+        # Model produksi stabil di GitHub Models
+        models_to_try = ['gpt-4o-mini', 'Llama-3.3-70B-Instruct', 'Mistral-large-2411']
         
         response_text = None
         success = False
         errors_log = []
 
         with st.spinner("AI sedang menganalisis data universitas, budget, dan skill gap..."):
-            client = Groq(api_key=api_key)
+            # Client OpenAI mengarah ke endpoint GitHub Models
+            client = OpenAI(
+                base_url="https://models.inference.ai.azure.com",
+                api_key=api_key,
+            )
             
             system_prompt = """
             Kamu adalah Konsultan Karir, Pengamat Penerimaan Mahasiswa Baru, dan Advisor Portofolio Akademik profesional.
@@ -253,6 +252,6 @@ if submit_button:
                 st.success("🎉 Analisis Portofolio & Kelayakan Kampus Selesai!")
                 st.markdown(response_text)
             else:
-                st.error("❌ Gagal terhubung ke layanan Groq. Detail kendala:")
+                st.error("❌ Gagal terhubung ke layanan GitHub Models. Detail kendala:")
                 for err in errors_log:
                     st.write(f"- {err}")
