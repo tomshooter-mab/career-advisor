@@ -164,12 +164,12 @@ if submit_button:
     elif not target_bidang or not univ_1 or not univ_2 or not univ_3 or not skill_dimiliki:
         st.warning("⚠️ Mohon lengkapi semua kolom yang bertanda bintang (*).")
     else:
-        # Model aktif & resmi dari Groq Cloud
-        models_to_try = ['llama-3.3-70b-versatile', 'llama3-8b-8192', 'gemma2-9b-it']
+        # Daftar model aktif & resmi dari Groq Cloud
+        models_to_try = ['llama-3.3-70b-versatile', 'llama-3.2-3b-preview', 'llama-3.2-1b-preview']
         
         response_text = None
         success = False
-        last_error = ""
+        errors_log = []
 
         with st.spinner("AI sedang menganalisis data universitas, budget, dan skill gap..."):
             client = Groq(api_key=api_key)
@@ -241,11 +241,13 @@ if submit_button:
                     success = True
                     break
                 except Exception as e:
-                    last_error = f"Model {model_name} gagal: {str(e)}"
+                    errors_log.append(f"**{model_name}**: {str(e)}")
                     continue
 
             if success and response_text:
                 st.success("🎉 Analisis Portofolio & Kelayakan Kampus Selesai!")
                 st.markdown(response_text)
             else:
-                st.error(f"❌ Detail Error dari Groq: {last_error}")
+                st.error("❌ Gagal terhubung ke layanan Groq. Detail kendala:")
+                for err in errors_log:
+                    st.write(f"- {err}")
