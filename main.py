@@ -1,3 +1,4 @@
+import time
 import streamlit as st
 from google import genai
 
@@ -150,24 +151,28 @@ with st.form("student_form"):
 
     st.markdown("---")
     st.markdown("### 🛠️ Modal Skill & Portofolio Saat Ini")
-    skill_dimiliki = st.text_area("Skill & Keahlian yang Dikuasai:*", placeholder="Contoh: Dasar pemrograman Python, C++, pembuatan GUI Tkinter, Bahasa Inggris, logika matematika.", height=100)
-    proyek_prestasi = st.text_area("Pengalaman Proyek / Karya / Aktivitas:", placeholder="Contoh: Proyek kalkulator Tkinter, proyek visualisasi data Python, lomba OSK Fisika, panitia sekolah.", height=100)
+    skill_dimiliki = st.text_area("Skill & Keahlian yang Dikuasai:*", placeholder="Contoh: Pemrograman Python, C++, logika matematika, Bahasa Inggris.", height=100)
+    proyek_prestasi = st.text_area("Pengalaman Proyek / Karya / Aktivitas:", placeholder="Contoh: Proyek kalkulator Tkinter, proyek visualisasi data Python, lomba fisika, panitia sekolah.", height=100)
 
     submit_button = st.form_submit_button("🚀 Jalankan Analisis AI Completeness & Feasibility")
 
 # ---------------------------------------------------------
-# 6. PEMPROSESAN GOOGLE GEMINI API (MENGGUNAKAN SDK GOOGLE-GENAI)
+# 6. PEMPROSESAN GOOGLE GEMINI API (SDK GOOGLE-GENAI)
 # ---------------------------------------------------------
 if submit_button:
     if not api_key:
-        st.error("❌ Layanan AI belum siap. Konfigurasi Gemini API Key di secrets belum terdeteksi.")
+        st.error("❌ Layanan AI belum siap. Konfigurasi Gemini API Key belum terdeteksi.")
     elif not target_bidang or not univ_1 or not univ_2 or not univ_3 or not skill_dimiliki:
         st.warning("⚠️ Mohon lengkapi semua kolom yang bertanda bintang (*).")
     else:
-        # Gunakan string model resmi yang didukung API saat ini
+        # Urutan Fallback Model:
+        # Menjajal seri 3.x terlebih dahulu, lalu otomatis beralih ke 2.x jika server overload (503) atau kehabisan kuota (429)
         models_to_try = [
             'gemini-3.6-flash',
-            'gemini-3.1-pro-preview'
+            'gemini-3.1-pro-preview',
+            'gemini-2.5-flash',
+            'gemini-2.0-flash',
+            'gemini-1.5-flash'
         ]
         
         response_text = None
@@ -176,7 +181,6 @@ if submit_button:
 
         with st.spinner("AI sedang menganalisis data universitas, budget, dan skill gap..."):
             try:
-                # Inisialisasi client resmi google-genai
                 client = genai.Client(api_key=api_key)
                 
                 system_prompt = """
@@ -234,7 +238,6 @@ if submit_button:
 
                 full_prompt = f"{system_prompt}\n\n{user_payload}"
 
-                # Percobaan memanggil model secara berurutan
                 for model_name in models_to_try:
                     try:
                         response = client.models.generate_content(
@@ -246,6 +249,7 @@ if submit_button:
                         break
                     except Exception as e:
                         errors_log.append(f"**{model_name}**: {str(e)}")
+                        time.sleep(2)  # Jeda 2 detik untuk menghindari lonjakan panggilan API secara berurutan
                         continue
 
             except Exception as e:
